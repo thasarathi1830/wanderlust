@@ -1,61 +1,61 @@
 require("dotenv").config();
 const mongoose = require("mongoose");
-const initData = require("./data.js");
-const Listing = require("../models/listing.js");
-const mbxGeocoding = require("@mapbox/mapbox-sdk/services/geocoding");
-const mapToken = process.env.MAP_TOKEN;
-const geoCodingClient = mbxGeocoding({ accessToken: mapToken });
+const Listing = require("../models/listing");
+const initData = require("./data");
 
-const mongoUrl = process.env.ATLASDB_URL;
+// ================== DB CONNECTION ==================
+const dbUrl = process.env.ATLASDB_URL;
 
-main()
-  .then(() => {
-    console.log("connected to DB");
-  })
-  .catch((err) => {
-    console.log(err);
-  });
-
-async function main() {
-  await mongoose.connect(mongoUrl);
+if (!dbUrl) {
+  console.error("❌ ATLASDB_URL missing in .env");
+  process.exit(1);
 }
 
+mongoose
+  .connect(dbUrl)
+  .then(() => console.log("✅ Connected to MongoDB"))
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err);
+    process.exit(1);
+  });
+
+// ================== INIT DATABASE ==================
 const initDB = async () => {
   try {
+    // 🔥 clear old data completely
     await Listing.deleteMany({});
+    console.log("🗑️ Old listings deleted");
 
-    const updatedData = await Promise.all(
-      initData.data.map(async (obj) => {
-        let response;
-        try {
-          response = await geoCodingClient
-            .forwardGeocode({
-              query: `${obj.location}, ${obj.country}`,
-              limit: 1,
-            })
-            .send();
-        } catch (error) {
-          console.error(
-            `Geocoding failed for ${obj.location}, ${obj.country}:`,
-            error
-          );
-          return { ...obj, owner: "66567b03fda820235197b582", geometry: null };
-        }
+    const cleanedData = initData.data.map((obj) => ({
+      title: obj.title,
+      description: obj.description,
+      price: obj.price,
+      location: obj.location,
+      country: obj.country,
 
-        const geometry = response.body.features[0].geometry || null;
+      // ✅ normalize category ONCE
+      category: obj.category
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, "-"),
 
-        return {
-          ...obj,
-          owner: "66567b03fda820235197b582",
-          geometry,
-        };
-      })
-    );
+      image: obj.image,
 
-    await Listing.insertMany(updatedData);
-    console.log("DB is initialized");
-  } catch (error) {
-    console.error("Error initializing DB:", error);
+      owner: "66567b03fda820235197b582", // existing user
+
+      geometry: {
+        type: "Point",
+        coordinates: obj.geometry.coordinates,
+      },
+    }));
+
+    await Listing.insertMany(cleanedData);
+    console.log("✅ Database initialized successfully");
+
+    mongoose.connection.close();
+  } catch (err) {
+    console.error("❌ Error initializing DB:", err);
+    mongoose.connection.close();
   }
 };
 

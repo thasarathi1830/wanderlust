@@ -1,22 +1,29 @@
-mapboxgl.accessToken = mapToken;
-const map = new mapboxgl.Map({
-  container: "map",
-  style: "mapbox://styles/mapbox/streets-v12",
-  center: listing.geometry.coordinates,
-  zoom: 9,
-});
+// Ensure listing data exists
+if (!listing || !listing.geometry || !listing.geometry.coordinates) {
+  console.error("Listing geometry not found");
+} else {
+  const [lng, lat] = listing.geometry.coordinates;
 
-const marker = new mapboxgl.Marker({ color: "red" })
-  .setLngLat(listing.geometry.coordinates)
-  .setPopup(
-    new mapboxgl.Popup({ offset: 25 }).setHTML(
-      `<div class="map-click">
-      <h4><b>${listing.title}</b></h4> 
-      <p>Exact loaction will be provided after booking.</p>
-      </div>`
-    )
-  )
-  .addTo(map);
+  // Initialize Leaflet map
+  const map = L.map("map").setView([lat, lng], 9);
 
-map.addControl(new mapboxgl.ScaleControl());
-map.addControl(new mapboxgl.NavigationControl());
+  // OpenStreetMap tiles (FREE, no API key)
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "© OpenStreetMap contributors",
+  }).addTo(map);
+
+  // Marker
+  const marker = L.marker([lat, lng]).addTo(map);
+
+  // Popup
+  marker.bindPopup(`
+    <div class="map-click">
+      <h4><b>${listing.title}</b></h4>
+      <p>Exact location will be provided after booking.</p>
+    </div>
+  `);
+
+  // Optional: open popup by default
+  marker.openPopup();
+}

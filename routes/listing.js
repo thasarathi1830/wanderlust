@@ -7,6 +7,7 @@ const multer = require("multer");
 const { storage } = require("../cloudConfig.js");
 const upload = multer({ storage });
 
+// INDEX + CREATE
 router
   .route("/")
   .get(wrapAsync(listingController.index))
@@ -17,11 +18,16 @@ router
     wrapAsync(listingController.createListing)
   );
 
+// NEW FORM
 router.get("/new", isLoggedIn, listingController.renderNewForm);
 
+// 🔥 FILTER ROUTE (IMPORTANT)
 router.get("/filter/:id", wrapAsync(listingController.filter));
-router.get("/search", listingController.search);
 
+// SEARCH
+router.get("/search", wrapAsync(listingController.search));
+
+// SHOW / UPDATE / DELETE
 router
   .route("/:id")
   .get(wrapAsync(listingController.showListing))
@@ -34,6 +40,7 @@ router
   )
   .delete(isLoggedIn, isOwner, wrapAsync(listingController.destroyListing));
 
+// EDIT FORM
 router.get(
   "/:id/edit",
   isLoggedIn,
@@ -41,6 +48,7 @@ router.get(
   wrapAsync(listingController.renderEditForm)
 );
 
+// RESERVE
 router.get(
   "/:id/reservelisting",
   isLoggedIn,
